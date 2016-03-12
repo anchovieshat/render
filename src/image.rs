@@ -1,5 +1,6 @@
 use std::fmt;
-use object::Vec2;
+
+use object::{Triangle, Vec2};
 
 #[derive(Clone, RustcEncodable)]
 pub struct Color(pub u32);
@@ -7,6 +8,13 @@ pub struct Color(pub u32);
 impl fmt::Debug for Color {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "#{:08X}", self.0)
+	}
+}
+
+impl Color {
+	pub fn new(r: u8, g: u8, b: u8, a: u8) -> Color {
+		let color = ((r as u32) << 24) + ((g as u32) << 16) + ((b as u32) << 8) + (a as u32);
+		Color(color)
 	}
 }
 
@@ -83,9 +91,62 @@ impl Image {
 		}
 	}
 
-	pub fn triangle(&mut self, t0: &Vec2<u32>, t1: &Vec2<u32>, t2: &Vec2<u32>, color: &Color) {
-		self.line(t0.x, t0.y, t1.x, t1.y, color);
-		self.line(t1.x, t1.y, t2.x, t2.y, color);
-		self.line(t2.x, t2.y, t0.x, t0.y, color);
+	pub fn triangle(&mut self, t: &mut Triangle<f32>, color: &Color) {
+		if (t.p0.y == t.p1.y) && (t.p0.y == t.p2.y) { return; }
+
+		let mut tri = Triangle::new(Vec2::new(((t.p0.x as i32), (t.p0.y as i32))), Vec2::new(((t.p1.x as i32), (t.p1.y as i32))), Vec2::new(((t.p2.x as i32), (t.p2.y as i32))));
+
+		if tri.p0.y > tri.p1.y {
+			let tmp = tri.p0.clone();
+			tri.p0 = tri.p1.clone();
+			tri.p1 = tmp;
+		}
+		if tri.p0.y > tri.p2.y {
+			let tmp = tri.p0.clone();
+			tri.p0 = tri.p2.clone();
+			tri.p2 = tmp;
+		}
+		if tri.p1.y > tri.p2.y {
+			let tmp = tri.p2.clone();
+			tri.p2 = tri.p1.clone();
+			tri.p1 = tmp;
+		}
+
+		let total_height = tri.p2.y - tri.p0.y;
+		for i in 0..(total_height as u32) {
+			let second_half = ((i as i32) > (tri.p1.y - tri.p0.y)) || (tri.p1.y == tri.p0.y);
+			let seg_height;
+			if second_half {
+				seg_height = tri.p2.y - tri.p1.y;
+			} else {
+				seg_height = tri.p1.y - tri.p0.y;
+			}
+
+			let alpha = (i as i32) / (total_height as i32);
+			let beta;
+			if second_half {
+				beta = (((i as i32) - (tri.p1.y - tri.p0.y)) as i32) / (seg_height as i32);
+			} else {
+				beta = ((i as i32) - 0) / (seg_height as i32);
+			}
+
+			let mut a = ((tri.p2.clone() - tri.p0.clone()) * Vec2::new((alpha, alpha))) + tri.p0.clone();
+			let mut b;
+			if second_half {
+				b = ((tri.p2.clone() - tri.p1.clone()) * Vec2::new((beta, beta))) + tri.p1.clone();
+			} else {
+				b = ((tri.p1.clone() - tri.p0.clone()) * Vec2::new((beta, beta))) + tri.p0.clone();
+			}
+
+			if a.x > b.x {
+				let tmp = b.clone();
+				b = a.clone();
+				a = tmp;
+			}
+
+			for j in (a.x as u32)..(b.x as u32) {
+				self.plot(j, (tri.p0.y + (i as i32)) as u32, color.clone());
+			}
+		}
 	}
 }
