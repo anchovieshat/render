@@ -28,26 +28,26 @@ impl<T> Vec2<T> {
 	}
 }
 
-impl Sub for Vec2<i32> {
-	type Output = Vec2<i32>;
+impl Sub for Vec2<f32> {
+	type Output = Vec2<f32>;
 
-	fn sub(self, v: Vec2<i32>) -> Vec2<i32> {
+	fn sub(self, v: Vec2<f32>) -> Vec2<f32> {
 		Vec2::new((self.x - v.x, self.y - v.y))
 	}
 }
 
-impl Mul for Vec2<i32> {
-	type Output = Vec2<i32>;
+impl Mul for Vec2<f32> {
+	type Output = Vec2<f32>;
 
-	fn mul(self, v: Vec2<i32>) -> Vec2<i32> {
+	fn mul(self, v: Vec2<f32>) -> Vec2<f32> {
 		Vec2::new((self.x * v.x, self.y * v.y))
 	}
 }
 
-impl Add for Vec2<i32> {
-	type Output = Vec2<i32>;
+impl Add for Vec2<f32> {
+	type Output = Vec2<f32>;
 
-	fn add(self, v: Vec2<i32>) -> Vec2<i32> {
+	fn add(self, v: Vec2<f32>) -> Vec2<f32> {
 		Vec2::new((self.x + v.x, self.y + v.y))
 	}
 }

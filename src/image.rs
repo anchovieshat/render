@@ -94,23 +94,24 @@ impl Image {
 	pub fn triangle(&mut self, t: &mut Triangle<f32>, color: &Color) {
 		if (t.p0.y == t.p1.y) && (t.p0.y == t.p2.y) { return; }
 
-		let mut tri = Triangle::new(Vec2::new(((t.p0.x as i32), (t.p0.y as i32))), Vec2::new(((t.p1.x as i32), (t.p1.y as i32))), Vec2::new(((t.p2.x as i32), (t.p2.y as i32))));
 
-		if tri.p0.y > tri.p1.y {
-			let tmp = tri.p0.clone();
-			tri.p0 = tri.p1.clone();
-			tri.p1 = tmp;
+		if t.p0.y > t.p1.y {
+			let tmp = t.p0.clone();
+			t.p0 = t.p1.clone();
+			t.p1 = tmp;
 		}
-		if tri.p0.y > tri.p2.y {
-			let tmp = tri.p0.clone();
-			tri.p0 = tri.p2.clone();
-			tri.p2 = tmp;
+		if t.p0.y > t.p2.y {
+			let tmp = t.p0.clone();
+			t.p0 = t.p2.clone();
+			t.p2 = tmp;
 		}
-		if tri.p1.y > tri.p2.y {
-			let tmp = tri.p2.clone();
-			tri.p2 = tri.p1.clone();
-			tri.p1 = tmp;
+		if t.p1.y > t.p2.y {
+			let tmp = t.p2.clone();
+			t.p2 = t.p1.clone();
+			t.p1 = tmp;
 		}
+
+		let mut tri = Triangle::new(Vec2::new(((t.p0.x as i32), (t.p0.y as i32))), Vec2::new(((t.p1.x as i32), (t.p1.y as i32))), Vec2::new(((t.p2.x as i32), (t.p2.y as i32))));
 
 		let total_height = tri.p2.y - tri.p0.y;
 		for i in 0..(total_height as u32) {
@@ -122,20 +123,20 @@ impl Image {
 				seg_height = tri.p1.y - tri.p0.y;
 			}
 
-			let alpha = (i as i32) / (total_height as i32);
+			let alpha = (i as f32) / (total_height as f32);
 			let beta;
 			if second_half {
-				beta = (((i as i32) - (tri.p1.y - tri.p0.y)) as i32) / (seg_height as i32);
+				beta = ((i as f32) - ((tri.p1.y - tri.p0.y) as f32)) / (seg_height as f32);
 			} else {
-				beta = ((i as i32) - 0) / (seg_height as i32);
+				beta = ((i as f32) - 0.0) / (seg_height as f32);
 			}
 
-			let mut a = ((tri.p2.clone() - tri.p0.clone()) * Vec2::new((alpha, alpha))) + tri.p0.clone();
+			let mut a = ((t.p2.clone() - t.p0.clone()) * Vec2::new((alpha, alpha))) + t.p0.clone();
 			let mut b;
 			if second_half {
-				b = ((tri.p2.clone() - tri.p1.clone()) * Vec2::new((beta, beta))) + tri.p1.clone();
+				b = ((t.p2.clone() - t.p1.clone()) * Vec2::new((beta, beta))) + t.p1.clone();
 			} else {
-				b = ((tri.p1.clone() - tri.p0.clone()) * Vec2::new((beta, beta))) + tri.p0.clone();
+				b = ((t.p1.clone() - t.p0.clone()) * Vec2::new((beta, beta))) + t.p0.clone();
 			}
 
 			if a.x > b.x {
@@ -145,7 +146,7 @@ impl Image {
 			}
 
 			for j in (a.x as u32)..(b.x as u32) {
-				self.plot(j, (tri.p0.y + (i as i32)) as u32, color.clone());
+				self.plot(j, (t.p0.y + (i as f32)) as u32, color.clone());
 			}
 		}
 	}
