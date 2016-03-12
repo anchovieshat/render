@@ -6,34 +6,28 @@ mod tga;
 mod object;
 
 use image::{Image, Color};
-use object::Object;
+use object::{Object, Vec2};
 use tga::TGA;
 
 fn main() {
-	let width = 800;
-	let height = 800;
+	let width = 200;
+	let height = 200;
 
 	let mut img = Image::new(width, height);
-	let obj = Object::load("head.obj");
 	let white = Color(0xFFFFFFFF);
-	let red =   Color(0xFF0000FF);
+	let red = Color(0xFF0000FF);
+	let green = Color(0x00FF00FF);
 
-	println!("number of verts: {}", obj.verts.len());
-	println!("number of faces: {}", obj.faces.len());
+	let t0 = vec![Vec2 { x: 10, y: 70 }, Vec2 { x: 50, y: 160 }, Vec2 { x: 70, y: 80 }];
+	let t1 = vec![Vec2 { x: 180, y: 50 }, Vec2 { x: 150, y: 1 }, Vec2 { x: 70, y: 180 }];
+	let t2 = vec![Vec2 { x: 180, y: 150 }, Vec2 { x: 120, y: 160 }, Vec2 { x: 130, y: 180 }];
 
-	for i in 0..obj.faces.len() {
-		let face = obj.faces.get(i).unwrap();
-		for j in 0..3 {
-			let v0 = obj.verts.get(face[j] as usize).unwrap();
-			let v1 = obj.verts.get(face[(j + 1) % 3] as usize).unwrap();
+	img.triangle(t0.get(0).unwrap(), t0.get(1).unwrap(), t0.get(2).unwrap(), &red);
+	img.triangle(t1.get(0).unwrap(), t1.get(1).unwrap(), t1.get(2).unwrap(), &white);
+	img.triangle(t2.get(0).unwrap(), t2.get(1).unwrap(), t2.get(2).unwrap(), &green);
 
-			let x0 = (((v0.x + 1.0) * (width as f32))  / 2.0) as u32;
-			let y0 = (((v0.y + 1.0) * (height as f32)) / 2.0) as u32;
-			let x1 = (((v1.x + 1.0) * (width as f32))  / 2.0) as u32;
-			let y1 = (((v1.y + 1.0) * (height as f32)) / 2.0) as u32;
-			img.line(x0, y0, x1, y1, &white.clone());
-		}
-	}
+	//let obj = Object::load("head.obj");
+	//obj.draw(&mut img, &white);
 
 	let out = TGA::new(&img);
 	out.save("test.tga");

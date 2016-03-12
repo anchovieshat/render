@@ -1,4 +1,5 @@
 use std::fmt;
+use object::Vec2;
 
 #[derive(Clone, RustcEncodable)]
 pub struct Color(pub u32);
@@ -37,7 +38,6 @@ impl Image {
 	pub fn plot(&mut self, x: u32, y: u32, color: Color) {
 		if x >= self.width || y >= self.height {
 			return;
-			//panic!("Point: ({},{}) outside of bounds!", x, y);
 		} else {
 			let idx = self.trans(x, y);
 			self.data[idx] = color;
@@ -81,5 +81,11 @@ impl Image {
 				self.plot(x as u32, y, color.clone());
 			}
 		}
+	}
+
+	pub fn triangle(&mut self, t0: &Vec2<u32>, t1: &Vec2<u32>, t2: &Vec2<u32>, color: &Color) {
+		self.line(t0.x, t0.y, t1.x, t1.y, color);
+		self.line(t1.x, t1.y, t2.x, t2.y, color);
+		self.line(t2.x, t2.y, t0.x, t0.y, color);
 	}
 }
