@@ -7,9 +7,13 @@ use image::{Image, Color};
 use tga::TGA;
 
 fn main() {
-	let mut img = Image::new(10, 10);
+	let mut img = Image::new(100, 100);
 	let white = Color(0xFFFFFFFF);
-	img.line(0, 0, 9, 9, &white);
+	let red =   Color(0xFF0000FF);
+
+	img.line(13, 20, 80, 40, &white.clone());
+	img.line(20, 13, 40, 80, &red.clone());
+	img.line(80, 40, 13, 20, &red.clone());
 
 	let out = TGA::new(&img);
 	out.save("test.tga");

@@ -41,7 +41,7 @@ impl TGA {
 				width: (img.width as u16).swap_bytes(),
 				height: (img.height as u16).swap_bytes(),
 				bits_per_pixel: 32,
-				img_desc: 0x28,
+				img_desc: 0x08,
 				..Default::default()
 			},
 			data: configured_data,
@@ -55,9 +55,9 @@ impl TGA {
 		let mut encoded_data: Vec<u8> = Vec::new();
 		for x in 0..self.data.len() {
 			let tmp = self.data[x].0;
-			encoded_data.push(((tmp << 24) >> 24) as u8);
-			encoded_data.push(((tmp << 16) >> 24) as u8);
 			encoded_data.push(((tmp << 8) >> 24) as u8);
+			encoded_data.push(((tmp << 16) >> 24) as u8);
+			encoded_data.push(((tmp << 24) >> 24) as u8);
 			encoded_data.push((tmp >> 24) as u8);
 		}
 
