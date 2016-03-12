@@ -166,8 +166,8 @@ impl Object {
 		}
 	}
 
-	pub fn draw(&self, img: &mut Image) {
-		let light_dir: Vec3<f32> = Vec3::new(0.0, 0.0, -1.0);
+	pub fn draw(&self, img: &mut Image, zbuf: &mut Vec<f32>) {
+		let light_dir: Vec3<f32> = Vec3::new(0.0, 0.0, -0.7);
 
 		for i in 0..self.faces.len() {
 			let face = self.faces.get(i).unwrap();
@@ -186,7 +186,7 @@ impl Object {
 
 			if intensity > 0.0 {
 				let mut t = Triangle::new(screen_coords[0].clone(), screen_coords[1].clone(), screen_coords[2].clone());
-				img.triangle(&mut t, &Color::new((intensity * 255.0) as u8, (intensity * 255.0) as u8, (intensity * 255.0) as u8, 255));
+				img.triangle(&mut t, zbuf, &Color::new((intensity * 255.0) as u8, (intensity * 255.0) as u8, (intensity * 255.0) as u8, 255));
 			}
 		}
 	}

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use object::{Triangle, Vec2};
+use object::{Triangle, Vec2, Vec3};
 
 #[derive(Clone, RustcEncodable)]
 pub struct Color(pub u32);
@@ -91,7 +91,7 @@ impl Image {
 		}
 	}
 
-	pub fn triangle(&mut self, t: &mut Triangle<f32>, color: &Color) {
+	pub fn triangle(&mut self, t: &mut Triangle<f32>, zbuf: &mut Vec<f32>, color: &Color) {
 		if (t.p0.y == t.p1.y) && (t.p0.y == t.p2.y) { return; }
 
 
@@ -111,7 +111,7 @@ impl Image {
 			t.p1 = tmp;
 		}
 
-		let mut tri = Triangle::new(Vec2::new(((t.p0.x as i32), (t.p0.y as i32))), Vec2::new(((t.p1.x as i32), (t.p1.y as i32))), Vec2::new(((t.p2.x as i32), (t.p2.y as i32))));
+		let tri = Triangle::new(Vec2::new(((t.p0.x as i32), (t.p0.y as i32))), Vec2::new(((t.p1.x as i32), (t.p1.y as i32))), Vec2::new(((t.p2.x as i32), (t.p2.y as i32))));
 
 		let total_height = tri.p2.y - tri.p0.y;
 		for i in 0..(total_height as u32) {
@@ -145,8 +145,14 @@ impl Image {
 				a = tmp;
 			}
 
+
 			for j in (a.x as u32)..(b.x as u32) {
-				self.plot(j, (t.p0.y + (i as f32)) as u32, color.clone());
+				let mut point = Vec3::new(j as f32, (t.p0.y + (i as f32)), 0.0);
+				point.z += t.p0.y;
+				if *zbuf.get(self.trans(point.x as u32, point.y as u32)).unwrap() < point.z {
+					zbuf[self.trans(point.x as u32, point.y as u32)] = point.z;
+					self.plot(point.x as u32, point.y as u32, color.clone());
+				}
 			}
 		}
 	}

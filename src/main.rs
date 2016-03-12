@@ -13,10 +13,15 @@ fn main() {
 	let width = 2048;
 	let height = 2048;
 
+	let mut zbuf = Vec::new();
+	for _ in 0..(width * height) {
+		zbuf.push(std::f32::NEG_INFINITY);
+	}
+
 	let mut img = Image::new(width, height);
 
 	let obj = Object::load("head.obj");
-	obj.draw(&mut img);
+	obj.draw(&mut img, &mut zbuf);
 
 	let out = TGA::new(&img);
 	out.save("test.tga");
