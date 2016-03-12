@@ -36,7 +36,8 @@ impl Image {
 
 	pub fn plot(&mut self, x: u32, y: u32, color: Color) {
 		if x >= self.width || y >= self.height {
-			panic!("Point: ({},{}) outside of bounds!", x, y);
+			return;
+			//panic!("Point: ({},{}) outside of bounds!", x, y);
 		} else {
 			let idx = self.trans(x, y);
 			self.data[idx] = color;
