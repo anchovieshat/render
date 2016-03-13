@@ -1,6 +1,9 @@
 use std::fmt;
+use std::f32;
 
-use object::{Triangle, Vec2, Vec3};
+use nalgebra::{Vec2, Vec3};
+
+use object::barycentric;
 
 #[derive(Clone, RustcEncodable)]
 pub struct Color(pub u32);
@@ -91,67 +94,28 @@ impl Image {
 		}
 	}
 
-	pub fn triangle(&mut self, t: &mut Triangle<f32>, zbuf: &mut Vec<f32>, color: &Color) {
-		if (t.p0.y == t.p1.y) && (t.p0.y == t.p2.y) { return; }
+	pub fn triangle(&mut self, t: &mut Vec<Vec3<f32>>, zbuf: &mut Vec<f32>, color: &Color) {
+		let mut bbox_min = Vec2::new(f32::INFINITY, f32::INFINITY);
+		let mut bbox_max = Vec2::new(f32::NEG_INFINITY, f32::NEG_INFINITY);
+		let clamp = Vec2::new((self.width as f32) - 1.0, (self.height as f32) - 1.0);
 
-
-		if t.p0.y > t.p1.y {
-			let tmp = t.p0.clone();
-			t.p0 = t.p1.clone();
-			t.p1 = tmp;
-		}
-		if t.p0.y > t.p2.y {
-			let tmp = t.p0.clone();
-			t.p0 = t.p2.clone();
-			t.p2 = tmp;
-		}
-		if t.p1.y > t.p2.y {
-			let tmp = t.p2.clone();
-			t.p2 = t.p1.clone();
-			t.p1 = tmp;
+		for i in 0..3 {
+			for j in 0..2 {
+				bbox_min[j] = (0.0 as f32).max(bbox_min[j].min(t[i][j]));
+				bbox_max[j] = clamp[j].min(bbox_max[j].max(t[i][j]));
+			}
 		}
 
-		let tri = Triangle::new(Vec2::new(((t.p0.x as i32), (t.p0.y as i32))), Vec2::new(((t.p1.x as i32), (t.p1.y as i32))), Vec2::new(((t.p2.x as i32), (t.p2.y as i32))));
+		for x in (bbox_min.x as i32)..(bbox_max.x as i32) {
+			for y in (bbox_min.y as i32)..(bbox_max.y as i32) {
+				let mut p = Vec3::new(x as f32, y as f32, 0.0);
+				let bc_screen = barycentric(&t[0], &t[1], &t[2], &p);
+				if bc_screen.x < 0.0 || bc_screen.y < 0.0 || bc_screen.z < 0.0 { continue; }
 
-		let total_height = tri.p2.y - tri.p0.y;
-		for i in 0..(total_height as u32) {
-			let second_half = ((i as i32) > (tri.p1.y - tri.p0.y)) || (tri.p1.y == tri.p0.y);
-			let seg_height;
-			if second_half {
-				seg_height = tri.p2.y - tri.p1.y;
-			} else {
-				seg_height = tri.p1.y - tri.p0.y;
-			}
-
-			let alpha = (i as f32) / (total_height as f32);
-			let beta;
-			if second_half {
-				beta = ((i as f32) - ((tri.p1.y - tri.p0.y) as f32)) / (seg_height as f32);
-			} else {
-				beta = ((i as f32) - 0.0) / (seg_height as f32);
-			}
-
-			let mut a = ((t.p2.clone() - t.p0.clone()) * Vec2::new((alpha, alpha))) + t.p0.clone();
-			let mut b;
-			if second_half {
-				b = ((t.p2.clone() - t.p1.clone()) * Vec2::new((beta, beta))) + t.p1.clone();
-			} else {
-				b = ((t.p1.clone() - t.p0.clone()) * Vec2::new((beta, beta))) + t.p0.clone();
-			}
-
-			if a.x > b.x {
-				let tmp = b.clone();
-				b = a.clone();
-				a = tmp;
-			}
-
-
-			for j in (a.x as u32)..(b.x as u32) {
-				let mut point = Vec3::new(j as f32, (t.p0.y + (i as f32)), 0.0);
-				point.z += t.p0.y;
-				if *zbuf.get(self.trans(point.x as u32, point.y as u32)).unwrap() < point.z {
-					zbuf[self.trans(point.x as u32, point.y as u32)] = point.z;
-					self.plot(point.x as u32, point.y as u32, color.clone());
+				for i in 0..3 { p.z += t[i][2] * bc_screen[i]; }
+				if zbuf[self.trans(p.x as u32, p.y as u32)] < p.z {
+					zbuf[self.trans(p.x as u32, p.y as u32)] = p.z;
+					self.plot(p.x as u32, p.y as u32, color.clone());
 				}
 			}
 		}

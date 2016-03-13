@@ -1,5 +1,6 @@
 extern crate bincode;
 extern crate rustc_serialize;
+extern crate nalgebra;
 
 mod image;
 mod tga;
@@ -10,8 +11,8 @@ use object::Object;
 use tga::TGA;
 
 fn main() {
-	let width = 2048;
-	let height = 2048;
+	let width = 4096;
+	let height = 4096;
 
 	let mut zbuf = Vec::new();
 	for _ in 0..(width * height) {
@@ -21,7 +22,8 @@ fn main() {
 	let mut img = Image::new(width, height);
 
 	let obj = Object::load("head.obj");
-	obj.draw(&mut img, &mut zbuf);
+
+	obj.rasterize(&mut img, &mut zbuf);
 
 	let out = TGA::new(&img);
 	out.save("test.tga");

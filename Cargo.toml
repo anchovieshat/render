@@ -6,3 +6,4 @@ authors = ["Colin Davidson <colin@pentaquine.com>"]
 [dependencies]
 bincode = "*"
 rustc-serialize = "*"
+nalgebra = "*"
