@@ -2,55 +2,73 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
 
-use nalgebra::Vec3;
+use nalgebra::{Vec2, Vec3, DMat};
 use nalgebra::cross;
 use nalgebra::Norm;
+use nalgebra::new_identity;
 
-use image::{Image, Color};
+use vbuffer::VBuffer;
 
 fn one_mul(u: &Vec3<f32>, v: &Vec3<f32>) -> f32 {
 	(u.x * v.x) + (u.y * v.y) + (u.z * v.z)
 }
 
-pub fn barycentric(a: &Vec3<f32>, b: &Vec3<f32>, c: &Vec3<f32>, p: &Vec3<f32>) -> Vec3<f32> {
-	let mut t = Vec::new();
-	for _ in 0..2 {
-		t.push(Vec3::new(0.0, 0.0, 0.0));
-	}
-	for i in 0..2 {
-		t[i][0] = c[i] - a[i];
-		t[i][1] = b[i] - a[i];
-		t[i][2] = a[i] - p[i];
-	}
-	let u = cross(&t[0], &t[1]);
+pub fn view_port(x: f32, y: f32, w: f32, h: f32, depth: i32) -> DMat<f32> {
+	let mut m: DMat<f32> = new_identity(4);
+	m[(0, 3)] = (x + w) / 2.0;
+	m[(1, 3)] = (y + h) / 2.0;
+	m[(2, 3)] = (depth as f32) / 2.0;
 
-	if u[2].abs() < 1e-2 { return Vec3::new(-1.0, 1.0, 1.0); }
-	return Vec3::new(1.0 - ((u.x + u.y) / u.z), u.y / u.z, u.x / u.z);
+	m[(0, 0)] = w / 2.0;
+	m[(1, 1)] = h / 2.0;
+	m[(2, 2)] = (depth as f32) / 2.0;
+	return m;
 }
 
-fn world_to_screen(height: u32, width: u32, v: &Vec3<f32>) -> Vec3<f32> {
-	Vec3::new(((((v.x + 1.0) * (width as f32)) / 2.0) + 0.5) as i32 as f32, ((((v.y + 1.0) * (height as f32)) / 2.0) + 0.5) as i32 as f32, v.z)
+pub fn mat_to_v3(m: &DMat<f32>) -> Vec3<i32> {
+	Vec3::new((m[(0, 0)] / m[(3, 0)]) as i32, (m[(1, 0)] / m[(3, 0)]) as i32, (m[(2, 0)] / m[(3, 0)]) as i32)
+}
+
+pub fn v3_to_mat(v: &Vec3<f32>) -> DMat<f32> {
+	unsafe {
+		let mut m = DMat::new_uninitialized(4, 1);
+		m[(0, 0)] = v.x;
+		m[(1, 0)] = v.y;
+		m[(2, 0)] = v.z;
+		m[(3, 0)] = 1.0;
+		return m;
+	}
 }
 
 pub struct Object {
 	pub verts: Vec<Vec3<f32>>,
-	pub faces: Vec<Vec<u32>>,
+	pub faces: Vec<Vec<Vec3<i32>>>,
 	pub normals: Vec<Vec3<f32>>,
 	pub tex_map: Vec<Vec3<f32>>,
+	pub texture: Option<VBuffer>,
 }
 
 impl Object {
-	pub fn load(filename: &str) -> Object {
+	pub fn load(obj_fname: &str, tex_fname: Option<&str>) -> Object {
 		let mut verts = Vec::new();
 		let mut faces = Vec::new();
 		let mut normals = Vec::new();
 		let mut tex_map = Vec::new();
 
-		let file = File::open(filename).unwrap();
+		let file = File::open(obj_fname).unwrap();
+		let texture;
+		if tex_fname.is_some() {
+			texture = VBuffer::load(tex_fname.unwrap());
+		} else {
+			texture = None;
+		}
+
 		let reader = BufReader::new(file);
 
 		for line in reader.lines() {
+
 			let line = line.unwrap();
+
 			if !line.contains("#") {
 				if line.contains("v ") {
 					let mut values = Vec::new();
@@ -90,18 +108,24 @@ impl Object {
 					tex_map.push(tex);
 				} else if line.contains("f ") {
 					let mut values = Vec::new();
-
 					for chunk in line.split_whitespace() {
 						if chunk != "f" {
-							if line.contains("/") {
-								let piece = chunk.split('/').nth(0).unwrap();
-								values.push(piece.parse::<u32>().unwrap() - 1);
-							} else {
-								values.push(chunk.parse::<u32>().unwrap() - 1);
+							for i in 0..3 {
+								let piece = chunk.split('/').nth(i).unwrap();
+								values.push(piece.parse::<i32>().unwrap() - 1);
 							}
 						}
 					}
-					faces.push(values);
+					let mut t_values = Vec::new();
+					for _ in 0..3 {
+						let n = values.pop().unwrap();
+						let u = values.pop().unwrap();
+						let v = values.pop().unwrap();
+						let tmp = Vec3::new(v, u, n);
+						t_values.push(tmp);
+					}
+					t_values.reverse();
+					faces.push(t_values);
 				}
 			}
 		}
@@ -111,43 +135,55 @@ impl Object {
 			faces: faces,
 			normals: normals,
 			tex_map: tex_map,
+			texture: texture,
 		}
 	}
 
-	pub fn wireframe(&self, img: &mut Image, color: &Color) {
-		for i in 0..self.faces.len() {
-			let face = self.faces.get(i).unwrap();
-			for j in 0..3 {
-				let v0 = self.verts.get(face[j] as usize).unwrap();
-				let v1 = self.verts.get(face[(j + 1) % 3] as usize).unwrap();
-				let x0 = (((v0.x + 1.0) * (img.width as f32))  / 2.0) as u32;
-				let y0 = (((v0.y + 1.0) * (img.height as f32)) / 2.0) as u32;
-				let x1 = (((v1.x + 1.0) * (img.width as f32))  / 2.0) as u32;
-				let y1 = (((v1.y + 1.0) * (img.height as f32)) / 2.0) as u32;
-				img.line(x0, y0, x1, y1, &color.clone());
-			}
+	pub fn face(&mut self, idx: usize) -> Vec<i32> {
+		let mut face = Vec::new();
+		let end = self.faces.get(idx).unwrap().len();
+		for i in 0..end {
+			face.push(self.faces.get(idx).unwrap().get(i).unwrap()[0]);
 		}
+		face
 	}
-	pub fn rasterize(&self, img: &mut Image, zbuf: &mut Vec<f32>) {
-		let light_dir: Vec3<f32> = Vec3::new(0.0, 0.0, -1.0);
+
+	pub fn uv(&self, f_idx: u32, v_idx: u32) -> Vec2<i32> {
+		let tmp = self.faces.get(f_idx as usize).unwrap();
+		let idx = tmp.get(v_idx as usize).unwrap()[1];
+		let tex = self.texture.as_ref().unwrap();
+		let x = self.tex_map.get(idx as usize).unwrap().x;
+		let y = self.tex_map.get(idx as usize).unwrap().y;
+		Vec2::new((x * (tex.width as f32)) as i32, (y * (tex.height as f32)) as i32)
+	}
+
+	pub fn rasterize(&mut self, img: &mut VBuffer, zbuf: &mut Vec<i32>, depth: i32, light_dir: &Vec3<f32>, camera: &Vec3<f32>) {
+		let mut projection: DMat<f32> = new_identity(4);
+		let view = view_port((img.width / 8) as f32, (img.height / 8) as f32, ((img.width * 3) / 4) as f32,  ((img.height * 3) / 4) as f32, depth);
+		projection[(3, 2)] = -1.0 / camera.z;
 
 		for i in 0..self.faces.len() {
-			let face = self.faces.get(i).unwrap();
+			let face = self.face(i);
 			let mut world_coords = Vec::new();
 			let mut screen_coords = Vec::new();
 
 			for j in 0..3 {
 				world_coords.push(Vec3::new(0.0, 0.0, 0.0));
 				let v = self.verts.get(face[j] as usize).unwrap();
-				screen_coords.push(world_to_screen(img.height, img.width, v));
+				screen_coords.push(mat_to_v3(&(view.clone() * projection.clone() * v3_to_mat(v))));
 				world_coords[j] = *v;
 			}
 
 			let n = cross(&(world_coords[2] - world_coords[0]), &(world_coords[1] - world_coords[0])).normalize();
 			let intensity = one_mul(&n, &light_dir);
 			if intensity > 0.0 {
-				let mut t = vec![screen_coords[0], screen_coords[1], screen_coords[2]];
-				img.triangle(&mut t, zbuf, &Color::new((intensity * 255.0) as u8, (intensity * 255.0) as u8, (intensity * 255.0) as u8, 255));
+				let mut uv = Vec::new();
+				for k in 0..3 {
+					uv.push(self.uv(i as u32, k));
+				}
+				let mut t = screen_coords;
+
+				img.triangle(&mut t, &mut uv, zbuf, intensity, &self.texture);
 			}
 		}
 	}
